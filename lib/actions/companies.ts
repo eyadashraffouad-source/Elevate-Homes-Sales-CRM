@@ -168,7 +168,7 @@ export async function importCompaniesFromCsv(
   if (!file || !(file instanceof File)) throw new Error("No CSV file provided");
 
   const text = await file.text();
-  const parsed = Papa.parse<Record<string, string>>(text, {
+  const parsed = Papa.parse(text, {
     header: true,
     skipEmptyLines: true,
     transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
