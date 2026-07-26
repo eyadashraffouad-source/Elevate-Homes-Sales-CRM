@@ -171,7 +171,7 @@ export async function importCompaniesFromCsv(
   const parsed = Papa.parse(text, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
+    transformHeader: (h: string) => h.trim().toLowerCase().replace(/\s+/g, "_"),
   });
 
   const summary: ImportSummary = { created: 0, skippedDuplicates: [], errors: [] };
