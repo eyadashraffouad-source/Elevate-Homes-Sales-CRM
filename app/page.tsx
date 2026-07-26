@@ -5,7 +5,8 @@ export default function Home() {
     <main className="max-w-2xl mx-auto py-24 px-6">
       <h1 className="font-serif text-3xl text-ink mb-2">Client Intelligence CRM</h1>
       <p className="text-muted mb-6">
-        Research, classify, and understand potential client companies.
+        Add companies, track every contact, and manage your relationships in
+        one organized workspace.
       </p>
       <Link
         href="/dashboard"

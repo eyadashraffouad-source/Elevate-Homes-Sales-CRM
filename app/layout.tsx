@@ -4,7 +4,7 @@ import { NavBar } from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Client Intelligence CRM",
-  description: "AI-powered client research and intelligence CRM",
+  description: "A company-centric CRM for managing companies and contacts",
 };
 
 export default function RootLayout({

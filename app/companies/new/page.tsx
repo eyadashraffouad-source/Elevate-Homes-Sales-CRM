@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createCompany } from "@/lib/actions/companies";
 
 function Field({
@@ -5,11 +6,13 @@ function Field({
   name,
   placeholder,
   type = "text",
+  required,
 }: {
   label: string;
   name: string;
   placeholder?: string;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <label className="block mb-4">
@@ -20,6 +23,7 @@ function Field({
         type={type}
         name={name}
         placeholder={placeholder}
+        required={required}
         className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
       />
     </label>
@@ -30,31 +34,38 @@ export default function NewCompanyPage() {
   return (
     <main className="max-w-xl mx-auto py-16 px-6">
       <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted mb-1">
-        New case file
+        New company
       </p>
       <h1 className="font-serif text-3xl text-ink mb-1">Add a company</h1>
-      <p className="text-sm text-muted mb-8">
-        Enter whatever you have. A name and one URL is enough — the rest gets
-        filled in once you research it.
+      <p className="text-sm text-muted mb-6">
+        Already have this company?{" "}
+        <Link href="/companies" className="text-accent underline underline-offset-2">
+          Search the companies list
+        </Link>{" "}
+        first and add a contact to the existing record instead of creating a
+        duplicate.
       </p>
 
       <form action={createCompany}>
-        <Field label="Company name *" name="name" placeholder="OfferCharm" />
-        <Field label="Website" name="website_url" placeholder="https://" />
-        <Field label="Google Maps URL" name="google_maps_url" placeholder="https://" />
-        <Field label="LinkedIn URL" name="linkedin_url" placeholder="https://" />
-        <Field label="Instagram URL" name="instagram_url" placeholder="https://" />
-        <Field label="Facebook URL" name="facebook_url" placeholder="https://" />
+        <Field label="Company name *" name="company_name" placeholder="OfferCharm" required />
+        <Field label="Website" name="website" placeholder="https://" />
+        <Field label="Industry" name="industry" placeholder="Real estate" />
 
         <label className="block mb-4">
           <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
-            Other URLs (one per line)
+            Company status
           </span>
-          <textarea
-            name="other_urls"
-            rows={2}
+          <select
+            name="company_status"
+            defaultValue="active"
             className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-          />
+          >
+            <option value="active">Active</option>
+            <option value="prospect">Prospect</option>
+            <option value="customer">Customer</option>
+            <option value="inactive">Inactive</option>
+            <option value="lost">Lost</option>
+          </select>
         </label>
 
         <label className="block mb-8">
@@ -73,7 +84,7 @@ export default function NewCompanyPage() {
           type="submit"
           className="bg-ink text-paper font-mono text-[12px] uppercase tracking-[0.1em] px-5 py-2.5 rounded-sm hover:bg-ink/90 transition-colors"
         >
-          Open case file
+          Create company
         </button>
       </form>
     </main>

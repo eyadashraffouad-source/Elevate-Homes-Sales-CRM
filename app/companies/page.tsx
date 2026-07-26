@@ -1,35 +1,37 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ResearchDot, StatusStamp } from "@/components/ui";
-import { Company } from "@/types/db";
+import { CompanyStatusStamp, ContactAvatar } from "@/components/ui";
+import { Company, Contact } from "@/types/db";
+
+type CompanyRow = Company & { contacts: Contact[] };
 
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: { state?: string; lead_status?: string; research_status?: string };
+  searchParams: { q?: string; status?: string; industry?: string };
 }) {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let companies: Company[] = [];
+  let companies: CompanyRow[] = [];
   let fetchError: string | null = null;
 
   if (user) {
     let query = supabase
       .from("companies")
-      .select("*")
+      .select("*, contacts(*)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (searchParams.state) query = query.ilike("location_state", `%${searchParams.state}%`);
-    if (searchParams.lead_status) query = query.eq("lead_status", searchParams.lead_status);
-    if (searchParams.research_status) query = query.eq("research_status", searchParams.research_status);
+    if (searchParams.q) query = query.ilike("company_name", `%${searchParams.q}%`);
+    if (searchParams.status) query = query.eq("company_status", searchParams.status);
+    if (searchParams.industry) query = query.ilike("industry", `%${searchParams.industry}%`);
 
     const { data, error } = await query;
     if (error) fetchError = error.message;
-    companies = (data as Company[]) ?? [];
+    companies = (data as unknown as CompanyRow[]) ?? [];
   }
 
   return (
@@ -37,24 +39,16 @@ export default async function CompaniesPage({
       <div className="flex items-end justify-between mb-8">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted mb-1">
-            Case index
+            Workspace
           </p>
           <h1 className="font-serif text-3xl text-ink">Companies</h1>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href="/companies/import"
-            className="border border-line font-mono text-[12px] uppercase tracking-[0.1em] text-ink px-4 py-2 rounded-sm hover:border-ink"
-          >
-            Import CSV
-          </Link>
-          <Link
-            href="/companies/new"
-            className="bg-ink text-paper font-mono text-[12px] uppercase tracking-[0.1em] px-4 py-2 rounded-sm hover:bg-ink/90"
-          >
-            + Add company
-          </Link>
-        </div>
+        <Link
+          href="/companies/new"
+          className="bg-ink text-paper font-mono text-[12px] uppercase tracking-[0.1em] px-4 py-2 rounded-sm hover:bg-ink/90"
+        >
+          + Add company
+        </Link>
       </div>
 
       <FilterBar current={searchParams} />
@@ -75,7 +69,7 @@ export default async function CompaniesPage({
         <div className="border border-dashed border-line rounded-sm p-10 text-center">
           <p className="font-serif text-lg text-ink mb-1">No companies yet</p>
           <p className="text-sm text-muted mb-4">
-            Add the first one — a name and a single URL is enough to start.
+            Add the first one — name it, then start adding contacts.
           </p>
           <Link
             href="/companies/new"
@@ -92,11 +86,10 @@ export default async function CompaniesPage({
             <thead>
               <tr className="border-b border-line bg-white/50 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
                 <th className="py-2.5 px-4 font-normal">Company</th>
-                <th className="py-2.5 px-4 font-normal">Location</th>
+                <th className="py-2.5 px-4 font-normal">Website</th>
                 <th className="py-2.5 px-4 font-normal">Industry</th>
-                <th className="py-2.5 px-4 font-normal">Lead status</th>
-                <th className="py-2.5 px-4 font-normal">Decision maker</th>
-                <th className="py-2.5 px-4 font-normal text-center">Research</th>
+                <th className="py-2.5 px-4 font-normal">Status</th>
+                <th className="py-2.5 px-4 font-normal">Contacts</th>
               </tr>
             </thead>
             <tbody>
@@ -110,21 +103,31 @@ export default async function CompaniesPage({
                       href={`/companies/${c.id}`}
                       className="font-medium text-ink hover:text-accent"
                     >
-                      {c.name}
+                      {c.company_name}
                     </Link>
                   </td>
-                  <td className="py-3 px-4 text-muted">
-                    {[c.location_city, c.location_state].filter(Boolean).join(", ") || "—"}
+                  <td className="py-3 px-4 text-muted truncate max-w-[160px]">
+                    {c.website ?? "—"}
                   </td>
                   <td className="py-3 px-4 text-muted">{c.industry ?? "—"}</td>
                   <td className="py-3 px-4">
-                    <StatusStamp value={c.lead_status} />
+                    <CompanyStatusStamp value={c.company_status} />
                   </td>
                   <td className="py-3 px-4">
-                    <StatusStamp value={c.decision_maker_status} />
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <ResearchDot status={c.research_status} />
+                    {c.contacts && c.contacts.length > 0 ? (
+                      <div className="flex items-center gap-1">
+                        {c.contacts.slice(0, 4).map((ct) => (
+                          <ContactAvatar key={ct.id} name={ct.full_name} />
+                        ))}
+                        {c.contacts.length > 4 && (
+                          <span className="text-muted text-xs ml-1">
+                            +{c.contacts.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted italic text-xs">None yet</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -139,38 +142,31 @@ export default async function CompaniesPage({
 function FilterBar({
   current,
 }: {
-  current: { state?: string; lead_status?: string; research_status?: string };
+  current: { q?: string; status?: string; industry?: string };
 }) {
-  const leadStatuses = ["potential_prospect", "contacted", "qualified", "disqualified"];
-  const researchStatuses = ["not_researched", "researched", "needs_update", "failed"];
+  const statuses = ["active", "prospect", "customer", "inactive", "lost"];
 
   return (
     <form className="flex flex-wrap items-center gap-3 mb-6" method="get">
       <input
-        name="state"
-        defaultValue={current.state}
-        placeholder="State"
-        className="border border-line bg-white/70 rounded-sm px-3 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-accent/40"
+        name="q"
+        defaultValue={current.q}
+        placeholder="Search company name"
+        className="border border-line bg-white/70 rounded-sm px-3 py-1.5 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-accent/40"
+      />
+      <input
+        name="industry"
+        defaultValue={current.industry}
+        placeholder="Industry"
+        className="border border-line bg-white/70 rounded-sm px-3 py-1.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
       <select
-        name="lead_status"
-        defaultValue={current.lead_status ?? ""}
+        name="status"
+        defaultValue={current.status ?? ""}
         className="border border-line bg-white/70 rounded-sm px-3 py-1.5 text-sm"
       >
-        <option value="">Any lead status</option>
-        {leadStatuses.map((s) => (
-          <option key={s} value={s}>
-            {s.replace(/_/g, " ")}
-          </option>
-        ))}
-      </select>
-      <select
-        name="research_status"
-        defaultValue={current.research_status ?? ""}
-        className="border border-line bg-white/70 rounded-sm px-3 py-1.5 text-sm"
-      >
-        <option value="">Any research status</option>
-        {researchStatuses.map((s) => (
+        <option value="">Any status</option>
+        {statuses.map((s) => (
           <option key={s} value={s}>
             {s.replace(/_/g, " ")}
           </option>

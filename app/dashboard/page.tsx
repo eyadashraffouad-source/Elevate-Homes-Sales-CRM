@@ -1,21 +1,17 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { StatusStamp } from "@/components/ui";
+import { CompanyStatusStamp } from "@/components/ui";
 
-async function count(
+async function countCompanies(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  filters: Record<string, string>
+  filters: Record<string, string> = {}
 ) {
   let query = supabase
     .from("companies")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
-
-  for (const [key, value] of Object.entries(filters)) {
-    query = query.eq(key, value);
-  }
-
+  for (const [key, value] of Object.entries(filters)) query = query.eq(key, value);
   const { count } = await query;
   return count ?? 0;
 }
@@ -34,25 +30,26 @@ export default async function DashboardPage() {
     );
   }
 
-  const [
-    totalCompanies,
-    notResearched,
-    researched,
-    noDecisionMaker,
-    potentialProspects,
-    failedRuns,
-  ] = await Promise.all([
-    count(supabase, user.id, {}),
-    count(supabase, user.id, { research_status: "not_researched" }),
-    count(supabase, user.id, { research_status: "researched" }),
-    count(supabase, user.id, { decision_maker_status: "unknown" }),
-    count(supabase, user.id, { lead_status: "potential_prospect" }),
-    count(supabase, user.id, { research_status: "failed" }),
+  const [totalCompanies, prospects, customers, followUps] = await Promise.all([
+    countCompanies(supabase, user.id),
+    countCompanies(supabase, user.id, { company_status: "prospect" }),
+    countCompanies(supabase, user.id, { company_status: "customer" }),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("contact_status", "follow_up")
+      .then((r) => r.count ?? 0),
   ]);
 
-  const { data: recentRuns } = await supabase
-    .from("research_runs")
-    .select("id, status, created_at, companies(id, name)")
+  const { count: totalContacts } = await supabase
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  const { data: recentCompanies } = await supabase
+    .from("companies")
+    .select("id, company_name, company_status, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(8);
@@ -64,67 +61,56 @@ export default async function DashboardPage() {
       </p>
       <h1 className="font-serif text-3xl text-ink mb-8">Dashboard</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <StatCard label="Total companies" value={totalCompanies} href="/companies" />
+        <StatCard label="Total contacts" value={totalContacts ?? 0} href="/companies" />
         <StatCard
-          label="Not yet researched"
-          value={notResearched}
-          href="/companies?research_status=not_researched"
-          flagged={notResearched > 0}
+          label="Prospects"
+          value={prospects}
+          href="/companies?status=prospect"
         />
         <StatCard
-          label="Researched"
-          value={researched}
-          href="/companies?research_status=researched"
+          label="Customers"
+          value={customers}
+          href="/companies?status=customer"
         />
         <StatCard
-          label="No decision-maker identified"
-          value={noDecisionMaker}
+          label="Follow-ups due"
+          value={followUps}
           href="/companies"
-          flagged={noDecisionMaker > 0}
-        />
-        <StatCard
-          label="Potential prospects"
-          value={potentialProspects}
-          href="/companies?lead_status=potential_prospect"
-        />
-        <StatCard
-          label="Failed research runs"
-          value={failedRuns}
-          href="/companies?research_status=failed"
-          flagged={failedRuns > 0}
+          flagged={followUps > 0}
         />
       </div>
 
       <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted mb-3">
-        Recent research activity
+        Recently added companies
       </p>
       <div className="border border-line rounded-sm overflow-hidden">
-        {recentRuns && recentRuns.length > 0 ? (
+        {recentCompanies && recentCompanies.length > 0 ? (
           <table className="w-full text-sm">
             <tbody>
-              {(recentRuns as any[]).map((r) => (
-                <tr key={r.id} className="border-b border-line last:border-0">
+              {recentCompanies.map((c) => (
+                <tr key={c.id} className="border-b border-line last:border-0">
                   <td className="py-2.5 px-4">
                     <Link
-                      href={`/companies/${r.companies?.id}`}
+                      href={`/companies/${c.id}`}
                       className="font-medium text-ink hover:text-accent"
                     >
-                      {r.companies?.name ?? "Unknown"}
+                      {c.company_name}
                     </Link>
                   </td>
                   <td className="py-2.5 px-4 text-muted">
-                    {new Date(r.created_at).toLocaleString()}
+                    {new Date(c.created_at).toLocaleDateString()}
                   </td>
                   <td className="py-2.5 px-4">
-                    <StatusStamp value={r.status} />
+                    <CompanyStatusStamp value={c.company_status} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-muted p-4">No research runs yet.</p>
+          <p className="text-sm text-muted p-4">No companies yet.</p>
         )}
       </div>
     </main>

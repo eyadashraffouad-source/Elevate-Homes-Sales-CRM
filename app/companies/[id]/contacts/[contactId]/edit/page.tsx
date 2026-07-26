@@ -1,12 +1,24 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Company } from "@/types/db";
-import { updateCompany } from "@/lib/actions/companies";
+import { Contact, JobTitle } from "@/types/db";
+import { updateContact } from "@/lib/actions/contacts";
 
-export default async function EditCompanyPage({
+const JOB_TITLES: JobTitle[] = [
+  "Sales Manager",
+  "Owner",
+  "CEO",
+  "Founder",
+  "Acquisitions Manager",
+  "Investor",
+  "Partner",
+  "Broker",
+  "Other",
+];
+
+export default async function EditContactPage({
   params,
 }: {
-  params: { id: string };
+  params: { id: string; contactId: string };
 }) {
   const supabase = createClient();
   const {
@@ -14,32 +26,33 @@ export default async function EditCompanyPage({
   } = await supabase.auth.getUser();
   if (!user) notFound();
 
-  const { data: company } = await supabase
-    .from("companies")
+  const { data: contact } = await supabase
+    .from("contacts")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", params.contactId)
+    .eq("company_id", params.id)
     .eq("user_id", user.id)
-    .single<Company>();
+    .single<Contact>();
 
-  if (!company) notFound();
+  if (!contact) notFound();
 
-  const updateWithId = updateCompany.bind(null, company.id);
+  const updateWithIds = updateContact.bind(null, params.id, contact.id);
 
   return (
     <main className="max-w-xl mx-auto py-16 px-6">
       <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted mb-1">
-        Edit company
+        Edit contact
       </p>
-      <h1 className="font-serif text-3xl text-ink mb-8">{company.company_name}</h1>
+      <h1 className="font-serif text-3xl text-ink mb-8">{contact.full_name}</h1>
 
-      <form action={updateWithId}>
+      <form action={updateWithIds}>
         <label className="block mb-4">
           <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
-            Company name *
+            Full name *
           </span>
           <input
-            name="company_name"
-            defaultValue={company.company_name}
+            name="full_name"
+            defaultValue={contact.full_name}
             required
             className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
@@ -47,40 +60,68 @@ export default async function EditCompanyPage({
 
         <label className="block mb-4">
           <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
-            Website
-          </span>
-          <input
-            name="website"
-            defaultValue={company.website ?? ""}
-            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
-        </label>
-
-        <label className="block mb-4">
-          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
-            Industry
-          </span>
-          <input
-            name="industry"
-            defaultValue={company.industry ?? ""}
-            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
-        </label>
-
-        <label className="block mb-4">
-          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
-            Company status
+            Role
           </span>
           <select
-            name="company_status"
-            defaultValue={company.company_status}
+            name="job_title"
+            defaultValue={contact.job_title ?? ""}
+            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm"
+          >
+            <option value="">Not set</option>
+            {JOB_TITLES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block mb-4">
+          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
+            Email
+          </span>
+          <input
+            name="email"
+            defaultValue={contact.email ?? ""}
+            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
+            Phone
+          </span>
+          <input
+            name="phone"
+            defaultValue={contact.phone ?? ""}
+            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
+            LinkedIn URL
+          </span>
+          <input
+            name="linkedin_url"
+            defaultValue={contact.linkedin_url ?? ""}
+            className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="block font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
+            Contact status
+          </span>
+          <select
+            name="contact_status"
+            defaultValue={contact.contact_status}
             className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm"
           >
             <option value="active">Active</option>
-            <option value="prospect">Prospect</option>
-            <option value="customer">Customer</option>
+            <option value="follow_up">Follow up</option>
+            <option value="unresponsive">Unresponsive</option>
             <option value="inactive">Inactive</option>
-            <option value="lost">Lost</option>
           </select>
         </label>
 
@@ -90,8 +131,8 @@ export default async function EditCompanyPage({
           </span>
           <textarea
             name="notes"
-            defaultValue={company.notes ?? ""}
-            rows={4}
+            defaultValue={contact.notes ?? ""}
+            rows={3}
             className="w-full border border-line bg-white/70 rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </label>
